@@ -13,53 +13,44 @@ html, body, #cesiumContainer {
     padding: 0;
     overflow: hidden;
 }
-/* تم حذف خصائص CSS الخاصة برسالة التشخيص #loadingMessage */
 </style>
 </head>
 <body>
 <div id="cesiumContainer"></div>
-<!-- تم حذف div الخاص برسالة التشخيص #loadingMessage -->
 
 <script>
-Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIyNWE2ZjBlZC1mM2NiLTRkYmYtODYzYS02Y2IwNzc4YmQ4Y2IiLCJpZCI6MzU1MzM3LCJpYXQiOjE3NjQwMjE5MzJ9.cHOUlWAXZAsqXniZI_qyNj9J54TEczS0nqOvb1mbSNwe';
+// توكن Cesium Ion الجديد
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhMDM3OTk4Ny1jMWE2LTQ2MmMtOWI2Zi1lN2QxOTlhMjE1YTkiLCJpZCI6MzU1MzM3LCJpYXQiOjE3NjQxOTMwNzl9.QgoGQMlc9RdR7RmIZ_9-4uQ5F0_b8MtoSvut7nLzW5o';
 
 let selectedPlotLabel = undefined;
-let viewer = null; // جعل الـ viewer معرفًا خارج نطاق الـ try-catch
+let viewer = null;
 
 try {
     viewer = new Cesium.Viewer("cesiumContainer", {
-        terrain: Cesium.Terrain.fromWorldTerrain(), // تضاريس عالمية
-        imageryProvider: Cesium.createWorldImagery({ // إضافة صور الأقمار الصناعية كخلفية
-            style: Cesium.ImageryLayerStyle.AERIAL // يمكن التغيير إلى AERIAL_WITH_LABELS لعرض أسماء الأماكن
+        terrain: Cesium.Terrain.fromWorldTerrain(),
+        imageryProvider: Cesium.createWorldImagery({
+            style: Cesium.ImageryLayerStyle.AERIAL
         }),
         animation: false,
         timeline: false,
-        baseLayerPicker: true, // سيبقى متاحًا لاختيار طبقات أخرى
+        baseLayerPicker: true,
         fullscreenButton: true,
-        geocoder: false, // تعطيل شريط البحث الافتراضي إذا لم تكن بحاجة إليه
+        geocoder: false,
         homeButton: true,
         navigationHelpButton: false,
-        infoBox: false // تعطيل صندوق المعلومات الافتراضي لـ Cesium
+        infoBox: false
     });
     console.log("Cesium Viewer initialized successfully.");
 
-    // إخفاء رسالة التحميل (إذا كنت قد أضفتها يدويًا)
-    const loadingMessageDiv = document.getElementById('loadingMessage');
-    if (loadingMessageDiv) {
-        loadingMessageDiv.style.display = 'none';
-    }
-
 } catch (error) {
     console.error("خطأ أثناء تهيئة Cesium Viewer:", error);
-    // يمكنك إضافة رسالة خطأ تظهر على الشاشة هنا إذا أردت بدلاً من الـ loadingMessage
-    // alert(`حدث خطأ أثناء تهيئة الخريطة: ${error.message}. يرجى التحقق من دعم المتصفح لـ WebGL.`);
+    alert(`حدث خطأ أثناء تهيئة الخريطة: ${error.message}. يرجى التحقق من دعم المتصفح لـ WebGL.`);
 }
 
 async function loadLandPlots(dataSourcePath) {
     if (!viewer) {
         console.error("Cesium Viewer غير مهيأ، لا يمكن تحميل البيانات.");
-        // يمكنك إضافة رسالة خطأ تظهر على الشاشة هنا
-        // alert("خطأ: لم يتم تهيئة الخريطة، لا يمكن تحميل البيانات.");
+        alert("خطأ: لم يتم تهيئة الخريطة، لا يمكن تحميل البيانات.");
         return;
     }
 
@@ -69,7 +60,7 @@ async function loadLandPlots(dataSourcePath) {
         const kmlDataSource = await Cesium.KmlDataSource.load(dataSourcePath, {
             camera: viewer.scene.camera,
             canvas: viewer.scene.canvas,
-            clampToGround: true // لجعل المضلعات تلتصق بالتضاريس
+            clampToGround: true
         });
 
         await viewer.dataSources.add(kmlDataSource);
@@ -78,9 +69,8 @@ async function loadLandPlots(dataSourcePath) {
 
         kmlDataSource.entities.values.forEach(entity => {
             if (Cesium.defined(entity.polygon)) {
-                // للوصول إلى الخصائص من ExtendedData في KML، نستخدم entity.properties.propertyName
                 const statusProperty = entity.properties && entity.properties.status;
-                const status = statusProperty && statusProperty.getValue(); // التأكد من وجودها قبل getValue()
+                const status = statusProperty && statusProperty.getValue();
 
                 if (status === 'مباع') {
                      entity.polygon.material = Cesium.Color.RED.withAlpha(0.4);
@@ -99,14 +89,11 @@ async function loadLandPlots(dataSourcePath) {
     }
 }
 
-// استدعاء دالة التحميل
-// تأكد من أن اسم الملف هنا يتطابق تمامًا مع اسم ملف KML الخاص بك.
-loadLandPlots('./plots.kml');
+// استدعاء دالة تحميل KML، مع تحديد اسم الملف إلى data.kml
+loadLandPlots('./data.kml');
 
-// معالج أحداث النقر لعرض التفاصيل مباشرة على الخريطة
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction(function(click) {
-    // إزالة Label السابق إذا كان موجودًا
     if (Cesium.defined(selectedPlotLabel)) {
         viewer.entities.remove(selectedPlotLabel);
         selectedPlotLabel = undefined;
@@ -132,7 +119,7 @@ handler.setInputAction(function(click) {
             const latitude = Cesium.Math.toDegrees(cartographicCentroid.latitude);
 
             selectedPlotLabel = viewer.entities.add({
-                position: Cesium.Cartesian3.fromDegrees(longitude, latitude, 0), // وضع Label على سطح الأرض
+                position: Cesium.Cartesian3.fromDegrees(longitude, latitude, 0),
                 label: {
                     text: labelText.trim(),
                     font: '20px sans-serif',
@@ -140,10 +127,10 @@ handler.setInputAction(function(click) {
                     outlineColor: Cesium.Color.BLACK,
                     outlineWidth: 2,
                     style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM, // يظهر فوق النقطة المحددة
-                    pixelOffset: new Cesium.Cartesian2(0, -20), // إزاحة للأعلى قليلاً
-                    heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND, // يلتصق بالأرض
-                    backgroundColor: Cesium.Color.fromCssColorString('#424242').withAlpha(0.7), // خلفية شفافة
+                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                    pixelOffset: new Cesium.Cartesian2(0, -20),
+                    heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+                    backgroundColor: Cesium.Color.fromCssColorString('#424242').withAlpha(0.7),
                     showBackground: true,
                 }
             });
@@ -155,7 +142,6 @@ handler.setInputAction(function(click) {
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-// إزالة Label عند تحريك الكاميرا
 viewer.camera.changed.addEventListener(function() {
     if (Cesium.defined(selectedPlotLabel)) {
         viewer.entities.remove(selectedPlotLabel);
