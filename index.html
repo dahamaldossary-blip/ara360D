@@ -6,7 +6,6 @@
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 <style>
-/* تصحيح: كل خصائص CSS بأحرف صغيرة */
 html, body, #cesiumContainer {
     width: 100%;
     height: 100%;
@@ -14,104 +13,91 @@ html, body, #cesiumContainer {
     padding: 0;
     overflow: hidden;
 }
-
-#infoBox {
+#loadingMessage { /* رسالة تحميل مؤقتة */
     position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(42, 42, 42, 0.8); /* خلفية داكنة شفافة */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.7);
     color: white;
-    padding: 15px;
-    border-radius: 8px;
-    z-index: 1; /* للتأكد من ظهوره فوق الخريطة */
-    display: none; /* إخفاؤه في البداية */
-    max-width: 300px;
-    font-family: Arial, sans-serif;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-#infoBox h3 {
-    margin-top: 0;
-    color: #4CAF50; /* لون مميز للعنوان */
-    border-bottom: 1px solid #4CAF50;
-    padding-bottom: 5px;
-    margin-bottom: 10px;
-}
-
-#infoBox p {
-    margin-bottom: 8px;
-    line-height: 1.4;
-}
-
-#infoBox strong {
-    color: #ADD8E6; /* لون فاتح للنصوص الهامة */
-}
-
-#infoBox button {
-    background-color: #f44336; /* زر إغلاق أحمر */
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 10px;
-    float: right; /* لجعل الزر في الزاوية */
-}
-
-#infoBox button:hover {
-    background-color: #d32f2f;
+    padding: 20px;
+    border-radius: 5px;
+    z-index: 1000;
+    font-family: sans-serif;
+    font-size: 1.2em;
+    text-align: center; /* لتوسيط النص */
 }
 </style>
 </head>
 <body>
 <div id="cesiumContainer"></div>
-<div id="infoBox">
-    <h3>تفاصيل قطعة الأرض</h3>
-    <p><strong>معرف القطعة:</strong> <span id="plotId"></span></p>
-    <p><strong>الحالة:</strong> <span id="plotStatus"></span></p>
-    <p><strong>المساحة:</strong> <span id="plotArea"></span> متر مربع</p>
-    <p><strong>السعر:</strong> <span id="plotPrice"></span></p>
-    <p><a id="plotDetailsLink" href="#" target="_blank" style="color: #64B5F6; text-decoration: none;">مزيد من التفاصيل &raquo;</a></p>
-    <button onclick="document.getElementById('infoBox').style.display = 'none'">إغلاق</button>
-</div>
+<div id="loadingMessage">جاري تحميل الخريطة والمخططات...</div>
 
 <script>
-// توكن Cesium Ion الخاص بك - تم إدخاله بناءً على آخر توكن واحد صحيح زودتني به
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIyNWE2ZjBlZC1mM2NiLTRkYmYtODYzYS02Y2IwNzc4YmQ4Y2IiLCJpZCI6MzU1MzM3LCJpYXQiOjE3NjQwMjE5MzJ9.cHOUlWAXZAsqXniZI_qyNj9J54TEczS0nqOvb1mbSNwe';
 
-// إنشاء المشاهد
-const viewer = new Cesium.Viewer("cesiumContainer", {
-    terrain: Cesium.Terrain.fromWorldTerrain(), // تضاريس عالمية
-    animation: false,
-    timeline: false,
-    baseLayerPicker: true,
-    fullscreenButton: true,
-    geocoder: false, // تعطيل شريط البحث الافتراضي إذا لم تكن بحاجة إليه
-    homeButton: true,
-    navigationHelpButton: false,
-    infoBox: false // تعطيل صندوق المعلومات الافتراضي لـ Cesium
-});
+let selectedPlotLabel = undefined;
+let viewer = null; // جعل الـ viewer معرفًا خارج نطاق الـ try-catch
 
-// دالة لتحميل قطع الأراضي من ملف KML
+try {
+    viewer = new Cesium.Viewer("cesiumContainer", {
+        terrain: Cesium.Terrain.fromWorldTerrain(),
+        imageryProvider: Cesium.createWorldImagery({
+            style: Cesium.ImageryLayerStyle.AERIAL
+        }),
+        animation: false,
+        timeline: false,
+        baseLayerPicker: true,
+        fullscreenButton: true,
+        geocoder: false,
+        homeButton: true,
+        navigationHelpButton: false,
+        infoBox: false
+    });
+    console.log("Cesium Viewer initialized successfully.");
+    document.getElementById('loadingMessage').textContent = "تم تهيئة الخريطة بنجاح، جاري تحميل البيانات...";
+
+    // إخفاء رسالة التحميل بعد تهيئة الـ viewer أو بعد تحميل الـ KML
+    viewer.scene.globe.tileLoadProgressEvent.addEventListener(function(numberOfPendingRequests) {
+        if (numberOfPendingRequests === 0) {
+            console.log("Globe tiles loaded.");
+            document.getElementById('loadingMessage').style.display = 'none';
+        }
+    });
+
+} catch (error) {
+    console.error("خطأ أثناء تهيئة Cesium Viewer:", error);
+    document.getElementById('loadingMessage').innerHTML = `حدث خطأ أثناء تهيئة الخريطة: <br>${error.message}. <br> يرجى التحقق من دعم المتصفح لـ WebGL.`;
+    document.getElementById('loadingMessage').style.backgroundColor = 'rgba(255, 0, 0, 0.7)'; // خلفية حمراء للخطأ
+}
+
 async function loadLandPlots(dataSourcePath) {
+    if (!viewer) {
+        console.error("Cesium Viewer غير مهيأ، لا يمكن تحميل البيانات.");
+        document.getElementById('loadingMessage').innerHTML += "<br>خطأ: لم يتم تهيئة الخريطة، لا يمكن تحميل البيانات.";
+        return;
+    }
+
     try {
-        // استخدام Cesium.KmlDataSource.load لتحميل ملف KML
+        console.log(`بدء تحميل ملف KML من: ${dataSourcePath}`);
+        document.getElementById('loadingMessage').innerHTML = `جاري تحميل ملف KML (${dataSourcePath})...`;
+        
         const kmlDataSource = await Cesium.KmlDataSource.load(dataSourcePath, {
             camera: viewer.scene.camera,
             canvas: viewer.scene.canvas,
-            clampToGround: true // لجعل المضلعات تلتصق بالتضاريس
+            clampToGround: true
         });
 
         await viewer.dataSources.add(kmlDataSource);
         await viewer.zoomTo(kmlDataSource);
-        console.log(`تم تحميل ${kmlDataSource.entities.values.length} قطعة أرض من ملف KML.`);
+        console.log(`تم تحميل ${kmlDataSource.entities.values.length} قطعة أرض من ملف KML بنجاح.`);
+        document.getElementById('loadingMessage').innerHTML = `تم تحميل ${kmlDataSource.entities.values.length} قطعة أرض بنجاح.`;
+        // رسالة التحميل ستختفي بواسطة tileLoadProgressEvent بعد تحميل بلاطات الخريطة
 
-        // تخصيص مظهر قطع الأراضي بعد التحميل
         kmlDataSource.entities.values.forEach(entity => {
             if (Cesium.defined(entity.polygon)) {
-                // للوصول إلى الخصائص من ExtendedData في KML، نستخدم entity.properties.propertyName
                 const statusProperty = entity.properties && entity.properties.status;
-                const status = statusProperty && statusProperty.getValue(); // التأكد من وجودها قبل getValue()
+                const status = statusProperty && statusProperty.getValue();
 
                 if (status === 'مباع') {
                      entity.polygon.material = Cesium.Color.RED.withAlpha(0.4);
@@ -126,68 +112,71 @@ async function loadLandPlots(dataSourcePath) {
 
     } catch (error) {
         console.error('حدث خطأ أثناء تحميل قطع الأراضي من KML:', error);
-        alert('حدث خطأ أثناء تحميل ملف KML. يرجى التحقق من المسار والتنسيق.');
+        document.getElementById('loadingMessage').innerHTML = `حدث خطأ أثناء تحميل ملف KML: <br>${error.message}. <br> يرجى التحقق من المسار والتنسيق.`;
+        document.getElementById('loadingMessage').style.backgroundColor = 'rgba(255, 0, 0, 0.7)'; // خلفية حمراء للخطأ
     }
 }
 
 // استدعاء دالة التحميل
-// تأكد من أن اسم الملف هنا يتطابق تمامًا مع اسم ملف KML الخاص بك.
-// إذا كان ملف KML الخاص بك اسمه مثلاً "my_plots.kml" فغير السطر إلى: loadLandPlots('./my_plots.kml');
 loadLandPlots('./plots.kml');
 
-// معالج أحداث النقر
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction(function(click) {
+    if (Cesium.defined(selectedPlotLabel)) {
+        viewer.entities.remove(selectedPlotLabel);
+        selectedPlotLabel = undefined;
+    }
+
     const pickedObject = viewer.scene.pick(click.position);
-    const infoBox = document.getElementById('infoBox');
 
-    // إخفاء صندوق المعلومات أولاً
-    infoBox.style.display = 'none';
-    viewer.selectedEntity = undefined; // إلغاء تحديد أي كيان سابق
-
-    if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
-        // تم النقر على كيان (entity)
+    if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id) && pickedObject.id.polygon) {
         const clickedPlot = pickedObject.id;
-
-        // في KML، يتم الوصول إلى الخصائص عبر entity.properties.propertyName.getValue()
         const properties = clickedPlot.properties;
 
-        // تأكيد وجود الخصائص قبل محاولة الوصول إليها
         if (Cesium.defined(properties)) {
-            // تحديث محتوى صندوق المعلومات، مع التحقق من وجود كل خاصية
-            document.getElementById('plotId').textContent = properties.id ? properties.id.getValue() : 'غير متوفر';
-            document.getElementById('plotStatus').textContent = properties.status ? properties.status.getValue() : 'غير متوفر';
-            document.getElementById('plotArea').textContent = properties.area ? properties.area.getValue() : 'غير متوفر';
-            document.getElementById('plotPrice').textContent = properties.price ? properties.price.getValue() : 'غير متوفر';
+            let labelText = '';
+            if (properties.id && properties.id.getValue()) labelText += `معرف القطعة: ${properties.id.getValue()}\n`;
+            if (properties.status && properties.status.getValue()) labelText += `الحالة: ${properties.status.getValue()}\n`;
+            if (properties.area && properties.area.getValue()) labelText += `المساحة: ${properties.area.getValue()} متر مربع\n`;
+            if (properties.price && properties.price.getValue()) labelText += `السعر: ${properties.price.getValue()}\n`;
 
-            const detailsLink = document.getElementById('plotDetailsLink');
-            if (properties.details_url && properties.details_url.getValue()) {
-                detailsLink.href = properties.details_url.getValue();
-                detailsLink.style.display = 'inline';
-            } else {
-                detailsLink.style.display = 'none';
-            }
+            const polygonHierarchy = clickedPlot.polygon.hierarchy.getValue();
+            const centroid = Cesium.BoundingSphere.fromPoints(polygonHierarchy.positions).center;
+            const cartographicCentroid = Cesium.Cartographic.fromCartesian(centroid);
+            const longitude = Cesium.Math.toDegrees(cartographicCentroid.longitude);
+            const latitude = Cesium.Math.toDegrees(cartographicCentroid.latitude);
 
-            // إظهار صندوق المعلومات
-            infoBox.style.display = 'block';
+            selectedPlotLabel = viewer.entities.add({
+                position: Cesium.Cartesian3.fromDegrees(longitude, latitude, 0),
+                label: {
+                    text: labelText.trim(),
+                    font: '20px sans-serif',
+                    fillColor: Cesium.Color.WHITE,
+                    outlineColor: Cesium.Color.BLACK,
+                    outlineWidth: 2,
+                    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                    pixelOffset: new Cesium.Cartesian2(0, -20),
+                    heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+                    backgroundColor: Cesium.Color.fromCssColorString('#424242').withAlpha(0.7),
+                    showBackground: true,
+                }
+            });
 
-            // اختياري: تسليط الضوء على القطعة المختارة
             viewer.selectedEntity = clickedPlot;
         }
+    } else {
+        viewer.selectedEntity = undefined;
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-// إخفاء صندوق المعلومات عند النقر خارج أي قطعة أرض أو عند تحريك الخريطة
-handler.setInputAction(function() {
-    document.getElementById('infoBox').style.display = 'none';
-    viewer.selectedEntity = undefined;
-}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK); // يمكن استخدام Double Click أو تغيير Logic إذا أردت إخفاءه بـ Left Click واحد
-
 viewer.camera.changed.addEventListener(function() {
-    document.getElementById('infoBox').style.display = 'none';
-    viewer.selectedEntity = undefined;
+    if (Cesium.defined(selectedPlotLabel)) {
+        viewer.entities.remove(selectedPlotLabel);
+        selectedPlotLabel = undefined;
+        viewer.selectedEntity = undefined;
+    }
 });
-
 </script>
 </body>
 </html>
